@@ -1,4 +1,5 @@
 import pygsheets
+import datetime
 
 
 def get_number():
@@ -9,7 +10,6 @@ def get_number():
         'https://docs.google.com/spreadsheets/d/1nYwMu-a-oH1aYNb0AD9JWz5CZMcJmRLLVO-XYwlEOBs/edit#gid=504054376')
     out_list = [i[0] for i in sh[1].get_values_batch('A')[0][1:]]
     return out_list
-
 
 
 def add_id(phone_number, id):
@@ -41,3 +41,19 @@ def get_all_list():
     sh = gc.open_by_url(
         'https://docs.google.com/spreadsheets/d/1nYwMu-a-oH1aYNb0AD9JWz5CZMcJmRLLVO-XYwlEOBs/edit#gid=2030006626')
     return sh[0].get_all_values(returnas='matrix')
+
+
+def push_data(data: list = None):
+    gc = pygsheets.authorize(
+        client_secret='client_secret_636982354700-htd4geok3m5qjjijti6gdjq05e3bu66n.apps.googleusercontent.com.json')
+    sh = gc.open_by_url(
+        'https://docs.google.com/spreadsheets/d/1nYwMu-a-oH1aYNb0AD9JWz5CZMcJmRLLVO-XYwlEOBs/edit#gid=2030006626')
+    today = datetime.date.today()
+    matrix = sh[0].get_values_batch('A')[0]
+    ln = len(matrix) + 1
+    sh[0].update_value((ln, 1), '.'.join(map(str, [today.day, today.month, today.year])))
+    sh[0].update_value((ln, 2), data[0])
+    sh[0].update_value((ln, 3), data[1])
+    sh[0].update_value((ln, 5), data[2])
+
+
