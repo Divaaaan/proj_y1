@@ -17,7 +17,7 @@ router = Router()
 @router.message(StateFilter(None), Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await message.answer(
-        "Пж авторизируйся",
+        "Пожалуйста авторизируйтесь",
         reply_markup=login()
     )
     await state.set_state(where_user.make_access)
@@ -35,7 +35,8 @@ async def on_user_shared(message: types.contact, state: FSMContext):
             message.contact.phone_number in list_of_good_num or str(message.contact.phone_number)[
                                                                 1:] in list_of_good_num):
         await message.answer(
-            f"Привет, {message.from_user.first_name}!",
+            f"Доберый день, {message.from_user.first_name}!\n"
+            f"Список фунекий вы можете наблюдать в левом нижнем углу",
             reply_markup=ReplyKeyboardRemove())
         await state.set_state(where_user.have_access)
         if message.contact.phone_number[0] == '+':

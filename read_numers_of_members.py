@@ -55,5 +55,26 @@ def push_data(data: list = None):
     sh[0].update_value((ln, 2), data[0])
     sh[0].update_value((ln, 3), data[1])
     sh[0].update_value((ln, 5), data[2])
+    if data[3] != '':
+        sh[0].update_value((ln, 4), f'Поступление тип {data[3]}')
+    last = sh[0].get_value((ln - 1, 6))
+    last = int(last.replace(u'\xa0', u'')[:-3])
+    if data[0] == 'Поступление':
+        last += int(data[1])
+    else:
+        last -= int(data[1])
+    sh[0].update_value((ln, 6), str(last))
+    return last
 
 
+def push_balance(data, sum):
+    gc = pygsheets.authorize(
+        client_secret='client_secret_636982354700-htd4geok3m5qjjijti6gdjq05e3bu66n.apps.googleusercontent.com.json')
+    sh = gc.open_by_url(
+        'https://docs.google.com/spreadsheets/d/1nYwMu-a-oH1aYNb0AD9JWz5CZMcJmRLLVO-XYwlEOBs/edit#gid=2030006626')
+    matrix = sh[0].get_values_batch('A')[0]
+    ln = len(matrix)
+    for i in range(ln - 1, -1, -1):
+        if matrix[i][0] == data:
+            sh[0].update_value((i + 1, 7), sum)
+            return None
