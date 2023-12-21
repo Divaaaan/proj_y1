@@ -15,7 +15,6 @@ bot = Bot(token=config.bot_token.get_secret_value())
 # users_data.init()
 
 
-
 # Запуск бота
 async def main():
     dp = Dispatcher(storage=MemoryStorage())
