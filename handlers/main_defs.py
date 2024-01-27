@@ -12,7 +12,7 @@ from typing import Optional
 
 from FCM import where_user
 
-from read_numers_of_members import push_data, push_balance, get_list_of_actions, get_names_of_exact_actions
+from read_numers_of_members import push_data, push_balance, get_names_of_exact_actions
 
 router = Router()
 
@@ -42,13 +42,13 @@ async def go_to_start(message: types.Message):
 @router.callback_query(APLCallbackFactory.filter(F.action == "change"))
 async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCallbackFactory, state: FSMContext):
     if callback_data.value == 'категория':
-        await update_category_text(callback.message)
+        await update_type_text(callback.message)
     elif callback_data.value == 'сумма':
         await update_sum_text(callback.message, state)
     elif callback_data.value == 'описание':
         await update_extra_text(callback.message, state)
     elif callback_data.value == 'тип':
-        await update_type_text(callback.message)
+        await update_category_text(callback.message)
     await callback.answer()
 
 
@@ -65,7 +65,7 @@ async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCall
 
 @router.callback_query(APLCallbackFactory.filter(F.action == "type"))
 async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCallbackFactory):
-    list = get_names_of_exact_actions(user_data[callback.message.chat.id][0], user_data[callback.message.chat.id][4])
+    list = get_names_of_exact_actions(user_data[callback.message.chat.id][0])
     user_data[callback.message.chat.id][3] = list[int(callback_data.value)]
     await update_text(callback.message)
     await callback.answer(None)
@@ -75,7 +75,7 @@ async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCall
 async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCallbackFactory):
     user_data[callback.message.chat.id] = ['', '', '', '', '']
     await update_text(callback.message)
-    await callback.answer(None)
+    await callback.answer(text='Запрос отменен, вы можете заполнить поля еще раз', show_alert=True)
 
 
 @router.callback_query(APLCallbackFactory.filter(F.action == "done"))
@@ -101,7 +101,7 @@ async def update_category_text(message: types.Message):
 async def update_type_text(message: types.Message):
     with suppress(TelegramBadRequest):
         await message.edit_text(
-            f"Выберите тип: ", reply_markup=make_type(message.chat.id))
+            f"Категория: ", reply_markup=make_type(message.chat.id))
 
 
 async def update_sum_text(message: types.Message, state: FSMContext):
@@ -113,12 +113,9 @@ async def update_sum_text(message: types.Message, state: FSMContext):
 
 @router.message(where_user.take_sum, F.text)
 async def sum(message: types.Message, state: FSMContext):
-    if message.text.isdigit():
-        await state.set_state(where_user.have_access)
-        user_data[message.from_user.id][1] = int(message.text)
-        await make_text(message)
-    else:
-        await message.reply(text='Это не число, введите еще раз')
+    await state.set_state(where_user.have_access)
+    user_data[message.from_user.id][1] = float(message.text.replace(',', '.'))
+    await make_text(message)
 
 
 async def update_extra_text(message: types.Message, state: FSMContext):
@@ -139,8 +136,8 @@ async def make_text(message: types.Message):
     await message.answer(
         f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
         f"Изменить содержание поля можно введя данные еще раз\n"
-        f"Категория: {user_data[message.chat.id][0]} \n"
-        f"Тип: {user_data[message.chat.id][3]} \n"
+        f"Тип: {user_data[message.chat.id][0]} \n"
+        f"Категория: {user_data[message.chat.id][3]} \n"
         f"Сумма: {user_data[message.chat.id][1]} \n"
         f"Описание: {user_data[message.chat.id][2]} \n",
         reply_markup=make_apl(False if user_data[message.chat.id][0] == '' else True))
@@ -154,8 +151,8 @@ async def update_text(message: types.Message, f=False):
                 f"Вы не ввели поле суммы или категории, без них отправка невозможна\n"
                 f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
                 f"Изменить содержание поля можно введя данные еще раз\n"
-                f"Категория: {user_data[message.chat.id][0]} \n"
-                f"Тип: {user_data[message.chat.id][3]} \n"
+                f"Тип: {user_data[message.chat.id][0]} \n"
+                f"Категория: {user_data[message.chat.id][3]} \n"
                 f"Сумма: {user_data[message.chat.id][1]} \n"
                 f"Описание: {user_data[message.chat.id][2]} \n",
                 reply_markup=make_apl(False if user_data[message.chat.id][0] == '' else True))
@@ -164,8 +161,8 @@ async def update_text(message: types.Message, f=False):
             await message.edit_text(
                 f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
                 f"Изменить содержание поля можно введя данные еще раз\n"
-                f"Категория: {user_data[message.chat.id][0]} \n"
-                f"Тип: {user_data[message.chat.id][3]} \n"
+                f"Тип: {user_data[message.chat.id][0]} \n"
+                f"Категория: {user_data[message.chat.id][3]} \n"
                 f"Сумма: {user_data[message.chat.id][1]} \n"
                 f"Описание: {user_data[message.chat.id][2]} \n",
                 reply_markup=make_apl(False if user_data[message.chat.id][0] == '' else True))
@@ -173,13 +170,13 @@ async def update_text(message: types.Message, f=False):
 
 def make_apl(flag):
     builder = InlineKeyboardBuilder()
-    builder.button(text="Выбор категории", callback_data=APLCallbackFactory(action="change", value='категория'))
+    builder.button(text="Тип", callback_data=APLCallbackFactory(action="change", value='тип'))
     if flag:
-        builder.button(text="Тип", callback_data=APLCallbackFactory(action="change", value='тип'))
+        builder.button(text="Категория", callback_data=APLCallbackFactory(action="change", value='категория'))
     builder.button(text="Ввести сумму", callback_data=APLCallbackFactory(action="change", value='сумма'))
     builder.button(text="Добавить описание", callback_data=APLCallbackFactory(action="change", value='описание'))
-    builder.button(text="Отменить", callback_data=APLCallbackFactory(action="cancel"))
-    builder.button(text="Отправить", callback_data=APLCallbackFactory(action="done"))
+    builder.button(text="Отменить ❌", callback_data=APLCallbackFactory(action="cancel"))
+    builder.button(text="Отправить ✅", callback_data=APLCallbackFactory(action="done"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -194,23 +191,19 @@ def make_choice():
 
 def make_type(id):
     builder = InlineKeyboardBuilder()
-    if user_data[id][4] == '':
-        list = get_list_of_actions()
-        for i in list:
-            builder.button(text=f'{i}', callback_data=APLCallbackFactory(action='action', value=f'{i}'))
-        builder.adjust(1)
-    else:
-        list = get_names_of_exact_actions(user_data[id][0], user_data[id][4])
-        for i in range(len(list)):
-            builder.button(text=f'{list[i]}', callback_data=APLCallbackFactory(action='type', value=f'{i}'))
-        builder.adjust(1)
+    list = get_names_of_exact_actions(user_data[id][0])
+    for i in range(len(list)):
+        builder.button(text=f'{list[i]}', callback_data=APLCallbackFactory(action='type', value=f'{i}'))
+    builder.adjust(1)
     return builder.as_markup()
+
 
 @router.callback_query(APLCallbackFactory.filter(F.action == "action"))
 async def have_action(callback: types.CallbackQuery, callback_data: APLCallbackFactory):
     user_data[callback.message.chat.id][4] = callback_data.value
     await update_type_text(callback.message)
     await callback.answer(None)
+
 
 # ---------------------------------------------------------------------------------------------
 

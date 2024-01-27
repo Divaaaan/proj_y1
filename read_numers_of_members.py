@@ -4,7 +4,7 @@ import datetime
 gc = pygsheets.authorize(
     client_secret='client_secret_636982354700-htd4geok3m5qjjijti6gdjq05e3bu66n.apps.googleusercontent.com.json')
 sh = gc.open_by_url(
-    'https://docs.google.com/spreadsheets/d/1Quj8PNN0YpoSMJxc9WZI0vhTJhjM_1YF51DBbW4YSCs/edit#gid=2030006626')
+    'https://docs.google.com/spreadsheets/d/1bEilCx8NITk_OExSCXs4BtHm2MuVeDY_DZT4MszfalQ/edit#gid=2030006626')
 
 
 def get_number():
@@ -52,16 +52,16 @@ def push_data(data: list = None):
     pr.update_value((ln, 5 + 1), data[2])
     if data[3] != '':
         pr.update_value((ln, 4 + 1), f'{data[3]}')
-    last = pr.get_value((ln - 1, 6 + 1))
-    if last == '':
-        last = int(list[1][1])
+    last = pr.get_value((ln - 1, 6 + 1)).replace('(', '-').replace(')', '')
+    if last == '' or last == 'остаток расчетный' or last == '0':
+        last = float(list[1][1].replace(u'\xa0', u'').replace(',', '.'))
     else:
-        last = int(last.replace(u'\xa0', u'')[:-3])
+        last = float(last.replace(u'\xa0', u'').replace(',', '.'))
     if data[0] == 'Поступление':
-        last += int(data[1])
+        last += float(data[1])
     else:
-        last -= int(data[1])
-    pr.update_value((ln, 6 + 1), str(last))
+        last -= float(data[1])
+    pr.update_value((ln, 6 + 1), str(last).replace('.', ','))
     return last
 
 
@@ -88,7 +88,7 @@ def push_balance(data, sum):
 
 def get_list_of_points():
     pr = sh.worksheet_by_title('справочник статей')
-    list = pr.get_all_values(returnas='matrix')[1:]
+    list = pr.get_all_values(returnas='matrix')
     ans = []
     for i in range(len(list)):
         extra_list = []
@@ -100,19 +100,19 @@ def get_list_of_points():
     return ans[1:]
 
 
-def get_list_of_actions():
+# def get_list_of_actions():
+#     list = get_list_of_points()
+#     ans = []
+#     for i in list:
+#         if i[2] not in ans:
+#             ans.append(i[2])
+#     return ans
+
+
+def get_names_of_exact_actions(type):
     list = get_list_of_points()
     ans = []
     for i in list:
-        if i[2] not in ans:
-            ans.append(i[2])
-    return ans
-
-
-def get_names_of_exact_actions(type, action):
-    list = get_list_of_points()
-    ans = []
-    for i in list:
-        if i[1] == type and i[2] == action:
+        if i[1] == type:
             ans.append(i[0])
     return ans
