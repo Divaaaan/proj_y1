@@ -7,8 +7,15 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 from contextlib import suppress
+from datetime import date
+
+from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback, DialogCalendar, DialogCalendarCallback, \
+    get_user_locale
+
+from aiogram.types import CallbackQuery
 
 from typing import Optional
+import datetime
 
 from FCM import where_user
 
@@ -30,10 +37,13 @@ async def cmd_start_application(message: Message, state: FSMContext):
 
 
 async def go_to_start(message: types.Message):
-    user_data[message.from_user.id] = ['', '', '', '', '']
+    today = datetime.date.today()
+    user_data[message.from_user.id] = ['', '', '', '',
+                                       f'{today.day}.{'0' + f"{today.month}" if today.month < 10 else today.month}.{today.year}']  # 4 - дата
     await message.answer(
         text=f'Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n'
              f'поменять поле можно введя его еще раз\n'
+             f'Дата {user_data[message.from_user.id][4]} \n'
              f'Тип: \n'
              f'Сумма: \n'
              f'Описание: \n', reply_markup=make_apl(False))
@@ -49,6 +59,8 @@ async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCall
         await update_extra_text(callback.message, state)
     elif callback_data.value == 'тип':
         await update_category_text(callback.message)
+    elif callback_data.value == 'дата':
+        await update_date(callback.message, state)
     await callback.answer()
 
 
@@ -83,12 +95,12 @@ async def callbacks_change(callback: types.CallbackQuery, callback_data: APLCall
     if user_data[callback.message.chat.id][0] == '' or user_data[callback.message.chat.id][1] == '':
         await update_text(callback.message, f=True)
         await callback.answer(None)
+        return
     print(user_data)
     ans = push_data(user_data[callback.message.chat.id])
     with suppress(TelegramBadRequest):
         await callback.message.edit_text(f'Транзакция записана \n'
                                          f'Расчетный остаток {ans}')
-    await callback.answer(None)
 
 
 async def update_category_text(message: types.Message):
@@ -125,6 +137,35 @@ async def update_extra_text(message: types.Message, state: FSMContext):
         await state.set_state(where_user.take_extra)
 
 
+async def update_date(message: types.Message, state: FSMContext):
+    with suppress(TelegramBadRequest):
+        await message.edit_text(
+            "Выберите дату: ",
+            reply_markup=await DialogCalendar(
+                locale='ru_ru'
+            ).start_calendar()
+        )
+
+
+@router.callback_query(DialogCalendarCallback.filter())
+async def process_dialog_calendar(callback_query: CallbackQuery, callback_data: CallbackData):
+    selected, date = await DialogCalendar(
+        locale=await get_user_locale(callback_query.from_user)
+    ).process_selection(callback_query, callback_data)
+    if selected:
+        user_data[callback_query.message.chat.id][4] = date.strftime("%d.%m.%Y")
+        with suppress(TelegramBadRequest):
+            await callback_query.message.edit_text(
+                f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
+                f"Изменить содержание поля можно введя данные еще раз\n"
+                f"Дата: {user_data[callback_query.message.chat.id][4]} \n"
+                f"Тип: {user_data[callback_query.message.chat.id][0]} \n"
+                f"Категория: {user_data[callback_query.message.chat.id][3]} \n"
+                f"Сумма: {user_data[callback_query.message.chat.id][1]} \n"
+                f"Описание: {user_data[callback_query.message.chat.id][2]} \n",
+                reply_markup=make_apl(False if user_data[callback_query.message.chat.id][0] == '' else True))
+
+
 @router.message(F.text, where_user.take_extra)
 async def extra(message: types.Message, state: FSMContext):
     user_data[message.from_user.id][2] = message.text
@@ -136,6 +177,7 @@ async def make_text(message: types.Message):
     await message.answer(
         f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
         f"Изменить содержание поля можно введя данные еще раз\n"
+        f"Дата: {user_data[message.chat.id][4]} \n"
         f"Тип: {user_data[message.chat.id][0]} \n"
         f"Категория: {user_data[message.chat.id][3]} \n"
         f"Сумма: {user_data[message.chat.id][1]} \n"
@@ -151,6 +193,7 @@ async def update_text(message: types.Message, f=False):
                 f"Вы не ввели поле суммы или категории, без них отправка невозможна\n"
                 f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
                 f"Изменить содержание поля можно введя данные еще раз\n"
+                f"Дата: {user_data[message.chat.id][4]} \n"
                 f"Тип: {user_data[message.chat.id][0]} \n"
                 f"Категория: {user_data[message.chat.id][3]} \n"
                 f"Сумма: {user_data[message.chat.id][1]} \n"
@@ -161,6 +204,7 @@ async def update_text(message: types.Message, f=False):
             await message.edit_text(
                 f"Выбирать пункты можно в любом порядке,\nкнопка отмены стирает все поля,\n"
                 f"Изменить содержание поля можно введя данные еще раз\n"
+                f"Дата: {user_data[message.chat.id][4]} \n"
                 f"Тип: {user_data[message.chat.id][0]} \n"
                 f"Категория: {user_data[message.chat.id][3]} \n"
                 f"Сумма: {user_data[message.chat.id][1]} \n"
@@ -170,6 +214,7 @@ async def update_text(message: types.Message, f=False):
 
 def make_apl(flag):
     builder = InlineKeyboardBuilder()
+    builder.button(text="Дата", callback_data=APLCallbackFactory(action="change", value='дата'))
     builder.button(text="Тип", callback_data=APLCallbackFactory(action="change", value='тип'))
     if flag:
         builder.button(text="Категория", callback_data=APLCallbackFactory(action="change", value='категория'))
@@ -198,11 +243,11 @@ def make_type(id):
     return builder.as_markup()
 
 
-@router.callback_query(APLCallbackFactory.filter(F.action == "action"))
-async def have_action(callback: types.CallbackQuery, callback_data: APLCallbackFactory):
-    user_data[callback.message.chat.id][4] = callback_data.value
-    await update_type_text(callback.message)
-    await callback.answer(None)
+# @router.callback_query(APLCallbackFactory.filter(F.action == "action"))
+# async def have_action(callback: types.CallbackQuery, callback_data: APLCallbackFactory):
+#     user_data[callback.message.chat.id][4] = callback_data.value
+#     await update_type_text(callback.message)
+#     await callback.answer(None)
 
 
 # ---------------------------------------------------------------------------------------------
